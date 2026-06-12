@@ -1,0 +1,55 @@
+name: Reverse IPA - Decompile Encryption
+
+on:
+  workflow_dispatch:
+
+jobs:
+  decompile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Download IPA
+        run: |
+          curl -L -H "Accept: application/octet-stream" \
+            -o app.ipa \
+            "https://github.com/BuLu0208/pnt-reverse/releases/download/pnt/3.4.0.ipa"
+
+      - name: Extract IPA
+        run: |
+          unzip -q app.ipa -d extracted
+          find extracted -name "TouchTV" -type f -exec cp {} binary \;
+          ls -lh binary
+          file binary
+
+      - name: Download and Setup Ghidra
+        run: |
+          wget -q https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_11.0.3_build/ghidra_11.0.3_PUBLIC_20240410.zip
+          unzip -q ghidra_11.0.3_PUBLIC_20240410.zip
+          mv ghidra_11.0.3_PUBLIC ghidra
+
+      - name: Run Ghidra Headless Analysis
+        run: |
+          mkdir -p output
+          ./ghidra/support/analyzeHeadless \
+            /tmp/ghidra_project TestProject \
+            -import binary \
+            -scriptPath ${{ github.workspace }} \
+            -postScript DecompileSecurity.java \
+            -noanalysis \
+            -deleteProject
+          echo "=== Output ==="
+          ls -la output/
+          cat output/*.c 2>/dev/null || echo "No .c files"
+
+      - name: Upload decompiled code
+        uses: actions/upload-artifact@v4
+        with:
+          name: securityutil-decompiled
+          path: output/
