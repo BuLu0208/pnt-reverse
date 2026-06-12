@@ -1,7 +1,10 @@
 name: Reverse IPA - Decompile Encryption
 
 on:
-  workflow_dispatch:
+  push:
+    paths:
+      - 'DecompileSecurity.java'
+      - '.github/workflows/reverse.yml'
 
 jobs:
   decompile:
@@ -36,17 +39,19 @@ jobs:
 
       - name: Run Ghidra Headless Analysis
         run: |
+          mkdir -p /tmp/ghidra_project
           mkdir -p output
           ./ghidra/support/analyzeHeadless \
             /tmp/ghidra_project TestProject \
             -import binary \
             -scriptPath ${{ github.workspace }} \
             -postScript DecompileSecurity.java \
-            -noanalysis \
-            -deleteProject
+            -deleteProject \
+            -max-cpu 4
           echo "=== Output ==="
           ls -la output/
           cat output/*.c 2>/dev/null || echo "No .c files"
+          find output -type f | head -30
 
       - name: Upload decompiled code
         uses: actions/upload-artifact@v4
